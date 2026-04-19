@@ -3098,7 +3098,7 @@ function cRenderTabla() {
         '</td>' +
         '<td class="c-td-stock" style="padding:.5rem .5rem;text-align:right;font-family:\'JetBrains Mono\',monospace;font-weight:700;font-size:.88rem;white-space:nowrap">' + p.stock + '</td>' +
         '<td style="padding:.3rem .35rem;text-align:center">' + spinner + '</td>' +
-        '<td style="padding:.5rem .3rem;text-align:center;font-weight:800;font-size:.88rem;color:' + diffColor + ';white-space:nowrap">' + diffTxt + '</td>' +
+        '<td data-diff="1" style="padding:.5rem .3rem;text-align:center;font-weight:800;font-size:.88rem;color:' + diffColor + ';white-space:nowrap">' + diffTxt + '</td>' +
         '<td class="c-col-razon" style="padding:.35rem .4rem">' + razonSelect + '</td>' +
         '</tr>';
     });
@@ -3108,11 +3108,14 @@ function cRenderTabla() {
 }
 
 // ── Interacción tabla ───────────────────────────────
+// cSetVal: actualiza SOLO la fila afectada sin reconstruir toda la tabla.
+// Esto es crítico en modo Total/Categoría con 333 productos.
 function cSetVal(id, val) {
-  var num = val === '' ? undefined : Math.max(0, parseInt(val) || 0);
-  var prod = products.find(function(p){return p.id===id;}) || {stock:0};
-  // Si el usuario escribe el mismo número que el stock actual,
-  // lo tratamos como "confirmado sin diferencia"
+  var num  = (val === '' || val === null || val === undefined)
+               ? undefined
+               : Math.max(0, parseInt(val) || 0);
+  var prod = products.find(function(p){ return p.id === id; }) || { stock: 0 };
+
   if (num === undefined) {
     delete cActual[id];
   } else {
@@ -3120,18 +3123,80 @@ function cSetVal(id, val) {
     cActual[id].contado = num;
     if (num >= prod.stock) cActual[id].razon = '';
   }
-  cRenderTabla();
-  setTimeout(function() {
-    var inp = document.getElementById('cIn_' + id);
-    if (inp) { inp.focus(); inp.select(); }
-  }, 10);
+
+  // ── Actualización quirúrgica: solo la fila, sin rebuild completo ──
+  cUpdateFila(id, prod, num);
+  cUpdateContadores();
+}
+
+function cUpdateFila(id, prod, num) {
+  var inp = document.getElementById('cIn_' + id);
+  if (!inp) return; // fila no visible actualmente
+
+  var stock   = prod.stock;
+  var diff    = (num !== undefined) ? (num - stock) : null;
+  var diffTxt = '—';
+  var rowBg, inputBg, inputBd, diffColor;
+
+  if (diff === null) {
+    rowBg = ''; inputBg = 'var(--surface)'; inputBd = 'var(--border)';
+    diffColor = 'var(--muted)';
+  } else if (diff === 0) {
+    rowBg = '#f0fdf4'; inputBg = '#f0fdf4'; inputBd = '#86efac';
+    diffTxt = '✓'; diffColor = 'var(--green)';
+  } else if (diff < 0) {
+    rowBg = '#fff5f5'; inputBg = '#fff5f5'; inputBd = '#fca5a5';
+    diffTxt = '' + diff; diffColor = 'var(--red)';
+  } else {
+    rowBg = '#f0f9ff'; inputBg = '#f0f9ff'; inputBd = '#7dd3fc';
+    diffTxt = '+' + diff; diffColor = 'var(--accent)';
+  }
+
+  // Actualizar color/borde del spinner
+  var wrap = inp.parentElement;
+  if (wrap) {
+    wrap.style.borderColor = inputBd;
+    wrap.style.background  = inputBg;
+    inp.style.background   = inputBg;
+    var btns = wrap.querySelectorAll('button');
+    btns.forEach(function(b){ b.style.background = inputBg; });
+  }
+
+  // Actualizar valor del input sin disparar oninput
+  if (inp !== document.activeElement) {
+    inp.value = num !== undefined ? num : prod.stock;
+  }
+
+  // Actualizar celda ±
+  var row = inp.closest('tr');
+  if (row) {
+    row.style.background = rowBg;
+    // Celda diff — 4ta celda visible (o 5ta si hay checkbox)
+    var tds = row.querySelectorAll('td');
+    // Buscar la td que contiene el texto de diff (tiene font-weight:800)
+    tds.forEach(function(td) {
+      if (td.style.fontWeight === '800' || td.getAttribute('data-diff')) {
+        td.textContent = diffTxt;
+        td.style.color = diffColor;
+      }
+    });
+    // Actualizar color fila
+    tds.forEach(function(td, i) {
+      if (i === 0 || td.classList.contains('c-td-stock')) return;
+      td.style.background = rowBg;
+    });
+  }
 }
 
 function cAjustar(id, delta) {
-  var inp = document.getElementById('cIn_' + id);
-  var p   = products.find(function(x){return x.id===id;}) || {};
-  var cur = inp && inp.value !== '' ? (parseInt(inp.value)||0) : p.stock;
-  cSetVal(id, Math.max(0, cur + delta));
+  var inp  = document.getElementById('cIn_' + id);
+  var prod = products.find(function(x){ return x.id === id; }) || { stock: 0 };
+  // Leer valor actual del input, si está vacío usar el stock del sistema
+  var cur  = (inp && inp.value !== '') ? (parseInt(inp.value) || 0) : prod.stock;
+  var nv   = Math.max(0, cur + delta);
+  // Actualizar input visualmente de inmediato
+  if (inp) inp.value = nv;
+  cSetVal(id, nv);
 }
 
 function cSetRazon(id, razon) {
