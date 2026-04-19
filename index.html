@@ -288,6 +288,8 @@ tbody tr{transition:background .1s}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 <body>
@@ -2427,9 +2429,73 @@ function scanDesktopLookup(val){
   } else { prev.style.display='none'; }
 }
 
-async function startScanner(){try{if(typeof ZXingBrowser!=='undefined')await startZXingScanner();else await startRawScanner();}catch(err){document.getElementById('scannerStatus').textContent='⚠️ No se pudo acceder a la cámara. Usa el campo manual abajo.';}}
-async function startZXingScanner(){if(codeReader){try{codeReader.reset();}catch(e){}}codeReader=new ZXingBrowser.BrowserMultiFormatReader();scannerCameras=await ZXingBrowser.BrowserMultiFormatReader.listVideoInputDevices();if(!scannerCameras.length)throw new Error('No cameras');const backCam=scannerCameras.find(c=>/back|rear|environment/i.test(c.label));if(backCam)scannerCamIdx=scannerCameras.indexOf(backCam);document.getElementById('switchCamBtn').style.display=scannerCameras.length>1?'':'none';await decodeContinuously();}
-async function decodeContinuously(){const video=document.getElementById('scannerVideo');const camId=scannerCameras[scannerCamIdx]?.deviceId;document.getElementById('scannerStatus').textContent='📷 Apunta al código de barras...';try{await codeReader.decodeFromVideoDevice(camId,video,(result,err)=>{if(result){const code=result.getText();if(code!==scannerLastCode){scannerLastCode=code;onCodeDetected(code);}}});}catch(e){document.getElementById('scannerStatus').textContent='⚠️ Error al leer. Usa el campo manual.';}}
+async function startScanner(){
+  try {
+    // @zxing/library@0.20 expone el namespace global "ZXing"
+    // con ZXing.BrowserMultiFormatReader
+    const zxingAvailable = (
+      typeof ZXing !== 'undefined' && ZXing.BrowserMultiFormatReader
+    ) || (
+      typeof ZXingBrowser !== 'undefined' && ZXingBrowser.BrowserMultiFormatReader
+    );
+    if (zxingAvailable) {
+      await startZXingScanner();
+    } else {
+      await startRawScanner();
+    }
+  } catch(err) {
+    console.warn('Scanner error:', err);
+    document.getElementById('scannerStatus').textContent =
+      '⚠️ No se pudo acceder a la cámara. Usa el campo manual abajo.';
+  }
+}
+async function startZXingScanner(){
+  // Detectar namespace: ZXing (@zxing/library) o ZXingBrowser (legado)
+  const ZX = (typeof ZXing !== 'undefined' && ZXing.BrowserMultiFormatReader)
+    ? ZXing
+    : ZXingBrowser;
+
+  if(codeReader){ try{ codeReader.reset(); }catch(e){} }
+  codeReader = new ZX.BrowserMultiFormatReader();
+
+  scannerCameras = await ZX.BrowserMultiFormatReader.listVideoInputDevices();
+  if(!scannerCameras.length) throw new Error('No cameras');
+
+  // Preferir cámara trasera en móvil
+  const backCam = scannerCameras.find(c => /back|rear|environment/i.test(c.label));
+  if(backCam) scannerCamIdx = scannerCameras.indexOf(backCam);
+
+  const switchBtn = document.getElementById('switchCamBtn');
+  if(switchBtn) switchBtn.style.display = scannerCameras.length > 1 ? '' : 'none';
+
+  await decodeContinuously();
+}
+async function decodeContinuously(){
+  const video   = document.getElementById('scannerVideo');
+  const statusEl = document.getElementById('scannerStatus');
+  const camId   = scannerCameras[scannerCamIdx] ? scannerCameras[scannerCamIdx].deviceId : undefined;
+  statusEl.textContent = '📷 Apunta al código de barras...';
+  try {
+    await codeReader.decodeFromVideoDevice(camId, video, function(result, err){
+      if(result){
+        var code = result.getText();
+        if(code !== scannerLastCode){
+          scannerLastCode = code;
+          onCodeDetected(code);
+        }
+      }
+      // Los errores de "no se encontró código" son normales — ignorar
+      if(err && err.name !== 'NotFoundException'){
+        console.warn('ZXing decode error:', err);
+      }
+    });
+  } catch(e) {
+    console.warn('decodeContinuously error:', e);
+    statusEl.textContent = '⚠️ Error al iniciar la cámara. Usa el campo manual.';
+    // Fallback a cámara sin decodificación
+    try { await startRawScanner(); } catch(e2){}
+  }
+}
 async function startRawScanner(){const constraints={video:{facingMode:{ideal:'environment'},width:{ideal:1280}}};scannerStream=await navigator.mediaDevices.getUserMedia(constraints);const video=document.getElementById('scannerVideo');video.srcObject=scannerStream;await video.play();document.getElementById('scannerStatus').textContent='📷 Cámara activa — escribe el código manualmente.';document.getElementById('switchCamBtn').style.display='none';}
 function onCodeDetected(code){const flash=document.getElementById('scanFlash');flash.style.opacity='1';setTimeout(()=>flash.style.opacity='0',300);document.getElementById('scannerStatus').textContent='✅ ¡Código detectado!';document.getElementById('scanResultCode').textContent=code;document.getElementById('scanResult').style.display='flex';const ex=products.find(p=>p.sku&&p.sku===code)||controlled.find(p=>p.sku&&p.sku===code);if(ex)document.getElementById('scannerStatus').textContent=`✅ Encontrado: ${ex.nombre}`;}
 function useScanResult(){if(!scannerLastCode)return;applyScannedCode(scannerLastCode);}
