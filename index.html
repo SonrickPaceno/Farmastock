@@ -312,6 +312,9 @@ tbody tr{transition:background .1s}
     <button class="mnav-btn" id="mnav-conteo" onclick="switchPage('conteo')"><span class="mnav-icon">🔢</span>Conteos</button>
   </div>
   <div class="mnav-btn-wrap">
+    <button class="mnav-btn" id="mnav-gestor" onclick="openGestorListas()" style="color:#38bdf8"><span class="mnav-icon">📂</span>Listas</button>
+  </div>
+  <div class="mnav-btn-wrap">
     <button class="mnav-btn" id="mnav-faltantes" onclick="openFaltantesModal()" style="color:#fb923c"><span class="mnav-icon">📋</span>Faltantes<span class="mnav-badge" id="mnavBadgeFaltantes" style="display:none;background:#ea580c">0</span></button>
   </div>
   <div class="mnav-btn-wrap">
@@ -345,7 +348,10 @@ tbody tr{transition:background .1s}
     <button class="nav-item" onclick="switchPage('inventario');filterView('out')">⚠️ Sin stock <span class="nav-badge" id="badgeOut">0</span></button>
     <button class="nav-item" onclick="switchPage('inventario');filterView('exp')">📅 Por vencer <span class="nav-badge" id="badgeExp" style="background:var(--purple)">0</span></button>
     <button class="nav-item" onclick="switchPage('inventario');filterView('low')">📉 Stock bajo <span class="nav-badge" id="badgeLow" style="background:var(--yellow)">0</span></button>
-    <div class="nav-label">Categorías</div>
+    <div class="nav-label" style="display:flex;align-items:center;justify-content:space-between;padding-right:.5rem">
+      <span>Categorías</span>
+      <button onclick="openGestorListas()" title="Gestionar listas" style="background:rgba(56,189,248,.15);border:1px solid rgba(56,189,248,.25);border-radius:6px;color:#38bdf8;font-size:.7rem;font-weight:700;cursor:pointer;padding:.15rem .45rem;font-family:inherit;line-height:1.4">⚙️ Gestionar</button>
+    </div>
     <div id="sidebarCats"></div>
   </nav>
   <div class="sidebar-bottom">
@@ -1215,6 +1221,139 @@ tbody tr{transition:background .1s}
     <div class="modal-actions" style="margin-top:0;border-top:1px solid var(--border);padding:.65rem 1rem">
       <button class="btn btn-outline" onclick="document.getElementById('faltanteFormModal').classList.remove('open')">Cancelar</button>
       <button class="btn btn-primary" onclick="saveFaltante()" style="background:#ea580c;border-color:#ea580c">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!-- MODAL: GESTOR DE LISTAS / CATEGORÍAS                   -->
+<!-- ══════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="gestorModal">
+  <div class="modal" style="max-width:680px;padding:0;overflow:hidden;display:flex;flex-direction:column;max-height:94vh">
+
+    <!-- Header oscuro azul -->
+    <div style="background:linear-gradient(135deg,#0c1a2e,#0f2d4a);padding:.85rem 1.1rem 0;flex-shrink:0">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.6rem;margin-bottom:.55rem">
+        <div style="flex:1;min-width:0">
+          <div style="color:#38bdf8;font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:.2rem">FarmaStock · Gestión de listas</div>
+          <div style="color:#fff;font-size:1rem;font-weight:800">📂 Gestionar listas de inventario</div>
+        </div>
+        <div style="text-align:center;background:rgba(56,189,248,.12);border:1px solid rgba(56,189,248,.25);border-radius:10px;padding:.2rem .65rem;flex-shrink:0">
+          <span id="glTotal" style="color:#38bdf8;font-size:1.1rem;font-weight:800;font-family:monospace;display:block;line-height:1.2">0</span>
+          <span style="color:#64748b;font-size:.55rem;text-transform:uppercase;letter-spacing:.7px">listas</span>
+        </div>
+        <button class="modal-close" onclick="document.getElementById('gestorModal').classList.remove('open')" style="color:#94a3b8;margin-top:.1rem">✕</button>
+      </div>
+      <!-- Tabs Vista -->
+      <div style="display:flex;gap:0;border-bottom:1px solid rgba(255,255,255,.08)">
+        <button id="glTab0" onclick="glSwitch(0)" style="padding:.42rem .9rem;border:none;font-size:.75rem;font-weight:800;cursor:pointer;font-family:inherit;background:transparent;color:#38bdf8;border-bottom:2px solid #38bdf8">📂 Listas</button>
+        <button id="glTab1" onclick="glSwitch(1)" style="padding:.42rem .9rem;border:none;font-size:.75rem;font-weight:700;cursor:pointer;font-family:inherit;background:transparent;color:#64748b;border-bottom:2px solid transparent">📦 Productos sin lista</button>
+      </div>
+    </div>
+
+    <!-- Contenido -->
+    <div id="glContent" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:.65rem .9rem;display:flex;flex-direction:column;gap:.5rem"></div>
+
+    <!-- Acciones fijas -->
+    <div class="modal-actions" style="margin-top:0;border-top:1px solid var(--border);padding:.65rem 1rem">
+      <button class="btn btn-outline" onclick="document.getElementById('gestorModal').classList.remove('open')">Cerrar</button>
+      <button class="btn btn-primary" onclick="openNuevaLista()" style="background:#0ea5e9;border-color:#0ea5e9">＋ Nueva lista</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!-- MODAL: DETALLE DE UNA LISTA                            -->
+<!-- ══════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="listaDetalleModal">
+  <div class="modal" style="max-width:700px;padding:0;overflow:hidden;display:flex;flex-direction:column;max-height:94vh">
+
+    <!-- Header -->
+    <div id="listaDetalleHeader" style="background:linear-gradient(135deg,#0c1a2e,#0f2d4a);padding:.85rem 1.1rem;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;gap:.6rem">
+      <div style="flex:1;min-width:0">
+        <div style="color:#38bdf8;font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:.15rem">FarmaStock · Lista</div>
+        <div id="listaDetalleNombre" style="color:#fff;font-size:.95rem;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+      </div>
+      <div style="display:flex;gap:.35rem;flex-shrink:0;align-items:center">
+        <span id="listaDetalleBadge" style="background:rgba(56,189,248,.15);color:#38bdf8;border:1px solid rgba(56,189,248,.3);border-radius:8px;padding:.2rem .55rem;font-size:.72rem;font-weight:700;font-family:monospace"></span>
+        <button class="modal-close" onclick="document.getElementById('listaDetalleModal').classList.remove('open')" style="color:#94a3b8">✕</button>
+      </div>
+    </div>
+
+    <!-- Barra de acciones de la lista -->
+    <div style="padding:.55rem .9rem;border-bottom:1px solid var(--border);display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;flex-shrink:0;background:var(--surface2)">
+      <button onclick="glRenombrar()" style="padding:.38rem .75rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);font-size:.76rem;font-weight:700;cursor:pointer;font-family:inherit;color:var(--text)">✏️ Renombrar</button>
+      <button onclick="glAgregarProducto()" style="padding:.38rem .75rem;border-radius:8px;border:1.5px solid #bae6fd;background:#f0f9ff;font-size:.76rem;font-weight:700;cursor:pointer;font-family:inherit;color:#0ea5e9">＋ Agregar producto</button>
+      <button onclick="glEliminarLista()" style="padding:.38rem .75rem;border-radius:8px;border:1.5px solid #fecaca;background:#fff5f5;font-size:.76rem;font-weight:700;cursor:pointer;font-family:inherit;color:var(--red);margin-left:auto">🗑 Eliminar lista</button>
+    </div>
+
+    <!-- Búsqueda dentro de la lista -->
+    <div style="padding:.5rem .9rem;border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;gap:.4rem;background:var(--surface)">
+      <span style="color:var(--muted)">🔍</span>
+      <input type="text" id="listaDetalleSearch" placeholder="Buscar en esta lista..." oninput="renderListaDetalle()"
+        style="flex:1;border:none;background:transparent;font-family:inherit;font-size:.83rem;outline:none;color:var(--text)">
+    </div>
+
+    <!-- Productos de la lista -->
+    <div id="listaDetalleBody" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0;display:flex;flex-direction:column"></div>
+
+    <div class="modal-actions" style="margin-top:0;border-top:1px solid var(--border);padding:.65rem 1rem">
+      <button class="btn btn-outline" onclick="document.getElementById('listaDetalleModal').classList.remove('open');openGestorListas()">← Volver</button>
+      <button class="btn btn-primary" onclick="glAgregarProducto()" style="background:#0ea5e9;border-color:#0ea5e9">＋ Agregar producto</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!-- MODAL: NUEVA LISTA / RENOMBRAR                         -->
+<!-- ══════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="listaFormModal">
+  <div class="modal" style="max-width:420px;padding:0;overflow:hidden">
+    <div style="background:linear-gradient(135deg,#0c1a2e,#0f2d4a);padding:.85rem 1.1rem;display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div style="color:#38bdf8;font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:.12rem">FarmaStock · Listas</div>
+        <div id="listaFormTitle" style="color:#fff;font-size:.95rem;font-weight:800">Nueva lista</div>
+      </div>
+      <button class="modal-close" onclick="document.getElementById('listaFormModal').classList.remove('open')" style="color:#94a3b8">✕</button>
+    </div>
+    <div style="padding:1.1rem 1.2rem;display:flex;flex-direction:column;gap:.75rem">
+      <div class="form-group">
+        <label style="font-size:.75rem;font-weight:600">Nombre de la lista <span class="req">*</span></label>
+        <input type="text" id="listaFormNombre" placeholder="Ej: Respiratorio, Vitaminas..."
+          style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:.65rem .9rem;font-size:.88rem;outline:none;transition:border-color .2s"
+          onfocus="this.style.borderColor='#0ea5e9'" onblur="this.style.borderColor='var(--border)'"
+          onkeydown="if(event.key==='Enter')guardarLista()">
+      </div>
+      <div id="listaFormInfo" style="font-size:.75rem;color:var(--muted);display:none"></div>
+    </div>
+    <div class="modal-actions" style="margin-top:0;border-top:1px solid var(--border);padding:.65rem 1rem">
+      <button class="btn btn-outline" onclick="document.getElementById('listaFormModal').classList.remove('open')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarLista()" style="background:#0ea5e9;border-color:#0ea5e9">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!-- MODAL: AGREGAR PRODUCTO A LISTA                        -->
+<!-- ══════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="agregarAListaModal">
+  <div class="modal" style="max-width:520px;padding:0;overflow:hidden;display:flex;flex-direction:column;max-height:90vh">
+    <div style="background:linear-gradient(135deg,#0c1a2e,#0f2d4a);padding:.85rem 1.1rem;flex-shrink:0;display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div style="color:#38bdf8;font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:.12rem">FarmaStock · Listas</div>
+        <div style="color:#fff;font-size:.9rem;font-weight:800">＋ Agregar producto a <span id="agregarListaNombre" style="color:#38bdf8"></span></div>
+      </div>
+      <button class="modal-close" onclick="document.getElementById('agregarAListaModal').classList.remove('open')" style="color:#94a3b8">✕</button>
+    </div>
+    <div style="padding:.5rem .9rem;border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;gap:.4rem;background:var(--surface)">
+      <span style="color:var(--muted)">🔍</span>
+      <input type="text" id="agregarSearch" placeholder="Buscar producto para agregar..." oninput="renderAgregarLista()"
+        style="flex:1;border:none;background:transparent;font-family:inherit;font-size:.83rem;outline:none;color:var(--text)">
+    </div>
+    <div id="agregarListaBody" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0"></div>
+    <div class="modal-actions" style="margin-top:0;border-top:1px solid var(--border);padding:.65rem 1rem">
+      <button class="btn btn-outline" onclick="document.getElementById('agregarAListaModal').classList.remove('open');renderListaDetalle()">Listo</button>
     </div>
   </div>
 </div>
@@ -4506,6 +4645,350 @@ var dRenderCatalog       = debounce(function(){ rafRender(renderCatalog); },    
 var dRenderProductsModal = debounce(function(){ rafRender(renderProductsModal); },  150);
 var dRenderFaltantes     = debounce(function(){ rafRender(renderFaltantes); },      150);
 var dCRenderTabla        = debounce(function(){ rafRender(cRenderTabla); },         100);
+
+
+// ════════════════════════════════════════════════════════
+//  MÓDULO: GESTOR DE LISTAS / CATEGORÍAS
+// ════════════════════════════════════════════════════════
+var glTab       = 0;
+var glListaActual = null;   // nombre de la lista abierta en detalle
+var glModoForm  = 'nueva';  // 'nueva' | 'renombrar'
+
+// ── Abrir gestor ─────────────────────────────────────────
+function openGestorListas(){
+  glTab = 0;
+  glListaActual = null;
+  glSetTab(0);
+  document.getElementById('gestorModal').classList.add('open');
+}
+
+function glSwitch(tab){ glTab = tab; glSetTab(tab); }
+
+function glSetTab(tab){
+  var tabs = ['glTab0','glTab1'];
+  tabs.forEach(function(id, i){
+    var b = document.getElementById(id);
+    if(!b) return;
+    b.style.color       = i===tab ? '#38bdf8' : '#64748b';
+    b.style.borderBottom= i===tab ? '2px solid #38bdf8' : '2px solid transparent';
+    b.style.fontWeight  = i===tab ? '800' : '700';
+  });
+  renderGestorListas();
+}
+
+// ── Render panel principal ────────────────────────────────
+function renderGestorListas(){
+  var cats  = getCategories();
+  var el    = document.getElementById('glContent');
+  document.getElementById('glTotal').textContent = cats.length;
+
+  if(glTab === 0){
+    // Vista de listas
+    if(!cats.length){
+      el.innerHTML = '<div style="text-align:center;padding:2.5rem 1rem;color:var(--muted)">'
+        + '<div style="font-size:2.5rem;margin-bottom:.5rem">📂</div>'
+        + '<div style="font-weight:700;font-size:.9rem;color:var(--text)">Sin listas</div>'
+        + '<div style="font-size:.78rem;margin-top:.3rem">Crea tu primera lista con el botón "＋ Nueva lista".</div>'
+        + '</div>';
+      return;
+    }
+
+    var catColors = ['#0ea5e9','#10b981','#8b5cf6','#f59e0b','#ef4444','#ec4899','#14b8a6','#f97316'];
+    el.innerHTML = cats.map(function(cat, i){
+      var col      = catColors[i % catColors.length];
+      var prods    = products.filter(function(p){ return p.categoria === cat; });
+      var sinStock = prods.filter(function(p){ return p.stock === 0; }).length;
+      var escasos  = prods.filter(function(p){ return p.stock > 0 && p.stock <= (p.minStock||0); }).length;
+      var totalU   = prods.reduce(function(a,p){ return a + Number(p.stock); }, 0);
+
+      return '<div style="background:var(--surface);border:1px solid var(--border);border-left:4px solid ' + col + ';border-radius:10px;padding:.65rem .9rem;display:flex;align-items:center;gap:.6rem;cursor:pointer" onclick="openListaDetalle(\'' + cat.replace(/'/g,"\\'") + '\')">'
+        + '<div style="width:36px;height:36px;border-radius:9px;background:' + col + '18;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0">📂</div>'
+        + '<div style="flex:1;min-width:0">'
+          + '<div style="font-weight:700;font-size:.88rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + cat + '</div>'
+          + '<div style="display:flex;gap:.4rem;margin-top:.2rem;flex-wrap:wrap;align-items:center">'
+            + '<span style="font-size:.68rem;color:var(--muted);font-family:monospace">' + prods.length + ' productos · ' + totalU + ' uds</span>'
+            + (sinStock ? '<span style="background:#fee2e2;color:#dc2626;border-radius:4px;padding:.06rem .35rem;font-size:.62rem;font-weight:700">✕' + sinStock + '</span>' : '')
+            + (escasos  ? '<span style="background:#fef3c7;color:#92400e;border-radius:4px;padding:.06rem .35rem;font-size:.62rem;font-weight:700">↓' + escasos + '</span>'  : '')
+          + '</div>'
+        + '</div>'
+        + '<div style="display:flex;gap:.3rem;flex-shrink:0">'
+          + '<button onclick="event.stopPropagation();glListaActual=\'' + cat.replace(/'/g,"\\'") + '\';glRenombrar()" title="Renombrar" style="width:30px;height:30px;border-radius:7px;border:1px solid var(--border);background:var(--surface2);font-size:.82rem;cursor:pointer;display:flex;align-items:center;justify-content:center">✏️</button>'
+          + '<button onclick="event.stopPropagation();glListaActual=\'' + cat.replace(/'/g,"\\'") + '\';glEliminarLista()" title="Eliminar" style="width:30px;height:30px;border-radius:7px;border:1px solid #fecaca;background:#fff5f5;font-size:.82rem;cursor:pointer;display:flex;align-items:center;justify-content:center">🗑</button>'
+        + '</div>'
+        + '<span style="font-size:.9rem;color:var(--muted)">›</span>'
+      + '</div>';
+    }).join('');
+
+  } else {
+    // Vista: productos sin categoría
+    var sinCat = products.filter(function(p){ return !p.categoria || p.categoria.trim() === ''; });
+    document.getElementById('glTotal').textContent = sinCat.length;
+    if(!sinCat.length){
+      el.innerHTML = '<div style="text-align:center;padding:2.5rem 1rem;color:var(--muted)">'
+        + '<div style="font-size:2.5rem;margin-bottom:.5rem">✅</div>'
+        + '<div style="font-weight:700;font-size:.9rem;color:var(--text)">Todos los productos tienen lista</div>'
+        + '</div>';
+      return;
+    }
+    el.innerHTML = sinCat.map(function(p, i){
+      var rowBg = i%2===0 ? 'var(--surface)' : 'var(--surface2)';
+      return '<div style="background:' + rowBg + ';border:1px solid var(--border);border-top:none;'
+        + (i===0?'border-radius:9px 9px 0 0;border-top:1px solid var(--border)':'')
+        + (i===sinCat.length-1?'border-radius:0 0 9px 9px;':'')
+        + 'padding:.55rem .9rem;display:flex;align-items:center;gap:.6rem">'
+        + '<div style="flex:1;min-width:0">'
+          + '<div style="font-weight:700;font-size:.83rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + p.nombre + '</div>'
+          + '<div style="font-size:.62rem;color:var(--muted);font-family:monospace;margin-top:.06rem">' + (p.sku||'Sin SKU') + '</div>'
+        + '</div>'
+        + '<select onchange="glAsignarCategoria(' + p.id + ',this.value);this.value=\'\'" style="font-size:.76rem;border:1.5px solid var(--accent);border-radius:8px;padding:.32rem .55rem;cursor:pointer;background:var(--surface);color:var(--accent);font-weight:700;outline:none">'
+          + '<option value="">Asignar lista...</option>'
+          + getCategories().map(function(c){ return '<option value="' + c + '">' + c + '</option>'; }).join('')
+        + '</select>'
+      + '</div>';
+    }).join('');
+  }
+}
+
+// ── Abrir detalle de lista ────────────────────────────────
+function openListaDetalle(cat){
+  glListaActual = cat;
+  document.getElementById('listaDetalleNombre').textContent = cat;
+  document.getElementById('listaDetalleSearch').value = '';
+  document.getElementById('gestorModal').classList.remove('open');
+  renderListaDetalle();
+  document.getElementById('listaDetalleModal').classList.add('open');
+}
+
+function renderListaDetalle(){
+  var cat   = glListaActual;
+  var q     = (document.getElementById('listaDetalleSearch').value||'').toLowerCase();
+  var prods = products.filter(function(p){
+    if(p.categoria !== cat) return false;
+    return !q || p.nombre.toLowerCase().includes(q) || (p.sku||'').toLowerCase().includes(q);
+  });
+
+  document.getElementById('listaDetalleNombre').textContent = cat;
+  document.getElementById('listaDetalleBadge').textContent  = prods.length + ' productos';
+
+  var el = document.getElementById('listaDetalleBody');
+  if(!prods.length){
+    el.innerHTML = '<div style="text-align:center;padding:2rem 1rem;color:var(--muted)">'
+      + '<div style="font-size:2rem;margin-bottom:.4rem">📦</div>'
+      + '<div style="font-size:.85rem">'
+      + (q ? 'Sin resultados para "' + q + '".' : 'Esta lista está vacía. Toca "＋ Agregar producto".')
+      + '</div></div>';
+    return;
+  }
+
+  var sc   = {ok:'var(--green)',low:'var(--yellow)',out:'var(--red)',exp:'#8b5cf6'};
+  var cats = getCategories();
+  el.innerHTML = prods.map(function(p, i){
+    var s      = stockStatus(p);
+    var col    = sc[s];
+    var rowBg  = i%2===0 ? 'var(--surface)' : 'var(--surface2)';
+    var isLast = i === prods.length - 1;
+
+    return '<div style="background:' + rowBg + ';border:1px solid var(--border);border-top:none;'
+      + (i===0?'border-top:1px solid var(--border);':'')
+      + (isLast?'border-radius:0 0 9px 9px;':'')
+      + 'padding:.55rem .9rem;display:flex;align-items:center;gap:.55rem">'
+      // Borde izq color estado
+      + '<div style="width:3px;min-height:38px;border-radius:2px;background:' + col + ';flex-shrink:0"></div>'
+      // Info
+      + '<div style="flex:1;min-width:0">'
+        + '<div style="font-weight:700;font-size:.83rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + p.nombre + '</div>'
+        + '<div style="font-size:.62rem;color:var(--muted);font-family:monospace;margin-top:.05rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'
+          + (p.sku||'Sin SKU') + ' · ' + (p.unidad||'u.')
+        + '</div>'
+      + '</div>'
+      // Stock
+      + '<div style="text-align:right;flex-shrink:0;min-width:42px">'
+        + '<div style="font-family:monospace;font-weight:800;font-size:.95rem;color:' + col + ';line-height:1">' + p.stock + '</div>'
+        + '<div style="font-size:.6rem;color:var(--muted)">' + (p.unidad||'u.') + '</div>'
+      + '</div>'
+      // Mover a otra lista
+      + '<select onchange="glMoverProducto(' + p.id + ',this.value,\'' + cat.replace(/'/g,"\\'") + '\');this.value=\'\'" title="Mover a otra lista" style="font-size:.72rem;border:1.5px solid var(--border);border-radius:7px;padding:.3rem .45rem;cursor:pointer;background:var(--surface2);outline:none;max-width:90px">'
+        + '<option value="">Mover...</option>'
+        + cats.filter(function(c){ return c!==cat; }).map(function(c){ return '<option value="' + c + '">' + c + '</option>'; }).join('')
+      + '</select>'
+      // Quitar de lista
+      + '<button onclick="glQuitarDelista(' + p.id + ')" title="Quitar de esta lista" style="width:28px;height:28px;border-radius:7px;border:1px solid #fecaca;background:#fff5f5;color:var(--red);font-size:.78rem;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center">✕</button>'
+    + '</div>';
+  }).join('');
+}
+
+// ── Asignar categoría a producto sin lista ────────────────
+function glAsignarCategoria(id, cat){
+  if(!cat) return;
+  var p = products.find(function(x){ return x.id===id; });
+  if(!p) return;
+  p.categoria = cat;
+  save();
+  renderGestorListas();
+  updateFilters();
+  renderStats();
+  showToast('📂 "' + p.nombre + '" → ' + cat, 'green');
+}
+
+// ── Mover producto a otra lista ───────────────────────────
+function glMoverProducto(id, nuevaCat, catActual){
+  if(!nuevaCat) return;
+  var p = products.find(function(x){ return x.id===id; });
+  if(!p) return;
+  p.categoria = nuevaCat;
+  save();
+  renderListaDetalle();
+  showToast('📦 "' + p.nombre + '" movido a ' + nuevaCat, 'green');
+}
+
+// ── Quitar producto de lista (queda sin categoría) ────────
+function glQuitarDelista(id){
+  var p = products.find(function(x){ return x.id===id; });
+  if(!p) return;
+  if(!confirm('¿Quitar "' + p.nombre + '" de la lista "' + glListaActual + '"?\nEl producto quedará sin lista asignada.')) return;
+  p.categoria = '';
+  save();
+  renderListaDetalle();
+  showToast('📦 Producto removido de la lista', 'accent');
+}
+
+// ── Nueva lista ───────────────────────────────────────────
+function openNuevaLista(){
+  glModoForm = 'nueva';
+  document.getElementById('listaFormTitle').textContent = '📂 Nueva lista';
+  document.getElementById('listaFormNombre').value = '';
+  document.getElementById('listaFormInfo').style.display = 'none';
+  document.getElementById('listaFormModal').classList.add('open');
+  setTimeout(function(){ document.getElementById('listaFormNombre').focus(); }, 100);
+}
+
+function glRenombrar(){
+  glModoForm = 'renombrar';
+  document.getElementById('listaFormTitle').textContent = '✏️ Renombrar lista';
+  document.getElementById('listaFormNombre').value = glListaActual || '';
+  var n = products.filter(function(p){ return p.categoria === glListaActual; }).length;
+  var info = document.getElementById('listaFormInfo');
+  info.textContent = 'Esta lista tiene ' + n + ' producto(s). Se actualizarán automáticamente.';
+  info.style.display = 'block';
+  document.getElementById('listaFormModal').classList.add('open');
+  setTimeout(function(){ var inp=document.getElementById('listaFormNombre'); inp.focus(); inp.select(); }, 100);
+}
+
+function guardarLista(){
+  var nombre = (document.getElementById('listaFormNombre').value||'').trim();
+  if(!nombre){ showToast('⚠️ El nombre no puede estar vacío', 'red'); return; }
+
+  if(glModoForm === 'nueva'){
+    if(getCategories().includes(nombre)){
+      showToast('⚠️ Ya existe una lista con ese nombre', 'red'); return;
+    }
+    // Crear lista vacía — no hay productos aún
+    document.getElementById('listaFormModal').classList.remove('open');
+    showToast('📂 Lista "' + nombre + '" creada. Agrega productos desde el detalle.', 'green');
+    // Abrir directamente el detalle para agregar productos
+    glListaActual = nombre;
+    renderListaDetalle();
+    document.getElementById('gestorModal').classList.remove('open');
+    document.getElementById('listaDetalleModal').classList.add('open');
+
+  } else {
+    // Renombrar — actualizar en todos los productos
+    var viejo = glListaActual;
+    if(nombre === viejo){ document.getElementById('listaFormModal').classList.remove('open'); return; }
+    if(getCategories().includes(nombre)){
+      showToast('⚠️ Ya existe una lista con ese nombre', 'red'); return;
+    }
+    var count = 0;
+    products.forEach(function(p){ if(p.categoria===viejo){ p.categoria=nombre; count++; } });
+    saveNow();
+    glListaActual = nombre;
+    document.getElementById('listaFormModal').classList.remove('open');
+    updateFilters();
+    renderStats();
+    renderListaDetalle();
+    showToast('✏️ Lista renombrada · ' + count + ' producto(s) actualizados', 'green');
+  }
+}
+
+// ── Eliminar lista ────────────────────────────────────────
+function glEliminarLista(){
+  var cat   = glListaActual;
+  var prods = products.filter(function(p){ return p.categoria === cat; });
+  var msg   = '¿Eliminar la lista "' + cat + '"?\n\n';
+  if(prods.length){
+    msg += prods.length + ' producto(s) quedarán SIN lista asignada.\n';
+    msg += '(No se eliminarán del inventario)';
+  } else {
+    msg += 'La lista está vacía.';
+  }
+  if(!confirm(msg)) return;
+
+  // Quitar categoría de todos los productos
+  products.forEach(function(p){ if(p.categoria===cat) p.categoria=''; });
+  saveNow();
+  glListaActual = null;
+  document.getElementById('listaDetalleModal').classList.remove('open');
+  updateFilters();
+  renderStats();
+  openGestorListas();
+  showToast('🗑 Lista "' + cat + '" eliminada · ' + prods.length + ' productos sin lista', 'red');
+}
+
+// ── Agregar producto a lista ──────────────────────────────
+function glAgregarProducto(){
+  document.getElementById('agregarListaNombre').textContent = glListaActual;
+  document.getElementById('agregarSearch').value = '';
+  renderAgregarLista();
+  document.getElementById('agregarAListaModal').classList.add('open');
+  setTimeout(function(){ document.getElementById('agregarSearch').focus(); }, 100);
+}
+
+function renderAgregarLista(){
+  var q     = (document.getElementById('agregarSearch').value||'').toLowerCase();
+  // Mostrar productos que NO están ya en esta lista
+  var lista = products.filter(function(p){
+    if(p.categoria === glListaActual) return false; // ya está en la lista
+    return !q || p.nombre.toLowerCase().includes(q) || (p.sku||'').toLowerCase().includes(q) || (p.categoria||'').toLowerCase().includes(q);
+  });
+
+  var el = document.getElementById('agregarListaBody');
+  if(!lista.length){
+    el.innerHTML = '<div style="text-align:center;padding:2rem 1rem;color:var(--muted);font-size:.85rem">'
+      + (q ? '🔍 Sin resultados para "' + q + '".' : '✅ Todos los productos ya están en esta lista.')
+      + '</div>';
+    return;
+  }
+
+  var sc = {ok:'var(--green)',low:'var(--yellow)',out:'var(--red)',exp:'#8b5cf6'};
+  el.innerHTML = lista.map(function(p, i){
+    var col   = sc[stockStatus(p)];
+    var rowBg = i%2===0 ? 'var(--surface)' : 'var(--surface2)';
+    return '<div style="background:' + rowBg + ';border:1px solid var(--border);border-top:none;'
+      + (i===0?'border-top:1px solid var(--border);':'')
+      + 'padding:.5rem .9rem;display:flex;align-items:center;gap:.55rem">'
+      + '<div style="width:3px;min-height:32px;border-radius:2px;background:' + col + ';flex-shrink:0"></div>'
+      + '<div style="flex:1;min-width:0">'
+        + '<div style="font-weight:700;font-size:.82rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + p.nombre + '</div>'
+        + '<div style="font-size:.62rem;color:var(--muted);font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'
+          + (p.categoria||'Sin lista') + ' · ' + (p.sku||'Sin SKU')
+        + '</div>'
+      + '</div>'
+      + '<span style="font-family:monospace;font-weight:700;font-size:.85rem;color:' + col + ';flex-shrink:0">' + p.stock + '</span>'
+      + '<button onclick="glConfirmarAgregar(' + p.id + ')" style="padding:.3rem .65rem;border-radius:7px;border:1.5px solid #bae6fd;background:#f0f9ff;color:#0284c7;font-size:.73rem;font-weight:700;cursor:pointer;flex-shrink:0;font-family:inherit">＋ Agregar</button>'
+    + '</div>';
+  }).join('');
+}
+
+function glConfirmarAgregar(id){
+  var p = products.find(function(x){ return x.id===id; });
+  if(!p) return;
+  var anterior = p.categoria;
+  p.categoria = glListaActual;
+  save();
+  renderAgregarLista();
+  // Feedback visual
+  showToast('＋ "' + p.nombre + '" agregado a ' + glListaActual + (anterior?' (era: '+anterior+')':''), 'green');
+}
 
 </script>
 </body>
