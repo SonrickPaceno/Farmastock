@@ -17,7 +17,7 @@
   --c5:#0284c7;--c5-bg:#f0f9ff;
 }
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:inherit;background:var(--bg);color:var(--text);min-height:100vh;display:flex}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex}
 
 /* ── SIDEBAR ── */
 .sidebar{width:240px;background:var(--sidebar);min-height:100vh;padding:1.5rem 1.2rem;flex-shrink:0;display:flex;flex-direction:column;gap:1.5rem;position:sticky;top:0;height:100vh;overflow-y:auto}
@@ -247,9 +247,14 @@ tbody tr{transition:background .1s}
   .toolbar select{font-size:.8rem;padding:.55rem .7rem;flex:1;min-width:100px}
   .search-wrap{min-width:100%}
   .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:12px}
-  table{min-width:600px}
+  .table-wrap table{min-width:600px}
   th,td{padding:.6rem .75rem;font-size:.8rem}
-  th:nth-child(3),td:nth-child(3),th:nth-child(6),td:nth-child(6){display:none}
+  /* Ocultar columnas 3 y 6 SOLO en las dos tablas principales.
+     Antes esta regla no estaba acotada y se aplicaba a todas las
+     tablas del documento: ocultaba el spinner en la tabla de
+     conteo y borraba columnas en la vista previa de importación. */
+  .table-wrap th:nth-child(3),.table-wrap td:nth-child(3),
+  .table-wrap th:nth-child(6),.table-wrap td:nth-child(6){display:none}
   .modal-overlay{align-items:flex-end;padding:0;padding-bottom:calc(64px + env(safe-area-inset-bottom, 0px))}
   .modal{width:100%!important;max-width:100%!important;max-height:calc(92vh - 64px - env(safe-area-inset-bottom, 0px));border-radius:20px 20px 0 0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:1rem}
   /* Conteo: bottom sheet con tabla que ocupa el espacio libre */
@@ -321,6 +326,9 @@ tbody tr{transition:background .1s}
     <button class="mnav-btn" id="mnav-gestor" onclick="openGestorListas()" style="color:#38bdf8"><span class="mnav-icon">📂</span>Listas</button>
   </div>
   <div class="mnav-btn-wrap">
+    <button class="mnav-btn" id="mnav-admin" onclick="requestAdminAccess()" style="color:#e2e8f0"><span class="mnav-icon">🛠️</span>Admin</button>
+  </div>
+  <div class="mnav-btn-wrap">
     <button class="mnav-btn" id="mnav-faltantes" onclick="openFaltantesModal()" style="color:#fb923c"><span class="mnav-icon">📋</span>Faltantes<span class="mnav-badge" id="mnavBadgeFaltantes" style="display:none;background:#ea580c">0</span></button>
   </div>
   <div class="mnav-btn-wrap">
@@ -364,6 +372,9 @@ tbody tr{transition:background .1s}
     <button class="nav-item" onclick="openFaltantesModal()" style="width:100%;background:rgba(234,88,12,.12);color:#fb923c;font-weight:700;border:1px solid rgba(234,88,12,.25);margin-bottom:.5rem">
       📋 Lista de faltantes
       <span class="nav-badge" id="badgeFaltantes" style="background:#ea580c;display:none">0</span>
+    </button>
+    <button class="nav-item" onclick="requestAdminAccess()" style="width:100%;background:rgba(15,23,42,.9);color:#e2e8f0;font-weight:700;border:1px solid rgba(148,163,184,.3);margin-bottom:.5rem">
+      🛠️ Panel administrador
     </button>
     <div class="alert-box" id="alertBox" style="display:none"><strong>⚕️ Atención requerida</strong><span id="alertMsg"></span></div>
   </div>
@@ -747,7 +758,7 @@ tbody tr{transition:background .1s}
           <option value="nombre"     style="background:#1e293b">A-Z</option>
           <option value="stock-desc" style="background:#1e293b">↑ Stock</option>
           <option value="stock-asc"  style="background:#1e293b">↓ Stock</option>
-          <option value="vencimiento"style="background:#1e293b">⏰ Venc.</option>
+          <option value="vencimiento" style="background:#1e293b">⏰ Venc.</option>
           <option value="categoria"  style="background:#1e293b">🗂 Cat.</option>
         </select>
       </div>
@@ -778,13 +789,42 @@ tbody tr{transition:background .1s}
 </div>
 
 <!-- ── MODAL: CONFIRMAR ELIMINACIÓN MASIVA ── -->
-<div class="modal-overlay" id="pmDeleteModal">
-  <div class="modal" style="max-width:420px">
-    <div class="modal-header"><h2 style="color:var(--red)">🗑️ Eliminar productos</h2><button class="modal-close" onclick="document.getElementById('pmDeleteModal').classList.remove('open')">✕</button></div>
-    <div id="pmDeleteList" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.8rem 1rem;margin-bottom:1rem;max-height:180px;overflow-y:auto;font-size:.85rem;display:flex;flex-direction:column;gap:.3rem"></div>
-    <div class="form-group"><label style="font-size:.75rem;font-weight:600">Motivo de eliminación <span class="req">*</span></label><select id="pmDeleteMotivo" style="width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:10px;padding:.7rem .9rem;font-family:inherit;font-size:.88rem;outline:none"><option value="">Seleccionar motivo...</option><option>Producto vencido</option><option>Daño o deterioro</option><option>Error de registro</option><option>Retiro del mercado</option><option>Donación</option><option>Merma / pérdida</option><option>Otro</option></select></div>
-    <div class="form-group"><label style="font-size:.75rem;font-weight:600">Observaciones adicionales</label><textarea id="pmDeleteNota" placeholder="Detalle adicional opcional..." style="width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:10px;padding:.7rem .9rem;font-family:inherit;font-size:.88rem;outline:none;resize:vertical;min-height:70px"></textarea></div>
-    <div class="modal-actions" style="margin-top:0;padding-top:1rem"><button class="btn btn-outline" onclick="document.getElementById('pmDeleteModal').classList.remove('open')">Cancelar</button><button class="btn btn-danger" onclick="executeDelete()">🗑️ Confirmar eliminación</button></div>
+<!-- FIX #7: overlay transparente — este modal siempre aparece
+     anidado sobre productsModal (ver openDeleteConfirm()), así
+     que no necesita su propio fondo oscuro/blur; evita el doble
+     oscurecimiento que se veía antes. -->
+<div class="modal-overlay" id="pmDeleteModal" style="background:transparent;backdrop-filter:none">
+  <div class="modal" style="max-width:440px;padding:0;overflow:hidden;display:flex;flex-direction:column;max-height:90vh;box-shadow:0 25px 70px rgba(0,0,0,.35)">
+
+    <!-- FIX #6: header oscuro con gradiente, igual al resto del sistema -->
+    <div style="background:linear-gradient(135deg,#450a0a,#7f1d1d);padding:.85rem 1.1rem;flex-shrink:0;display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div style="color:#fca5a5;font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:.2rem">FarmaStock · Confirmación</div>
+        <div style="color:#fff;font-size:.95rem;font-weight:800">🗑️ Eliminar productos</div>
+      </div>
+      <button class="modal-close" onclick="document.getElementById('pmDeleteModal').classList.remove('open')" style="color:#fca5a5">✕</button>
+    </div>
+
+    <div style="flex:1;overflow-y:auto;padding:1rem 1.2rem;display:flex;flex-direction:column;gap:.8rem">
+      <div id="pmDeleteList" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.7rem .9rem;max-height:180px;overflow-y:auto;font-size:.85rem;display:flex;flex-direction:column;gap:.3rem"></div>
+      <div class="form-group" style="margin:0">
+        <label style="font-size:.75rem;font-weight:600">Motivo de eliminación <span class="req">*</span></label>
+        <select id="pmDeleteMotivo" style="width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:10px;padding:.65rem .9rem;font-family:inherit;font-size:.85rem;outline:none">
+          <option value="">Seleccionar motivo...</option>
+          <option>Producto vencido</option><option>Daño o deterioro</option><option>Error de registro</option>
+          <option>Retiro del mercado</option><option>Donación</option><option>Merma / pérdida</option><option>Otro</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin:0">
+        <label style="font-size:.75rem;font-weight:600">Observaciones adicionales</label>
+        <textarea id="pmDeleteNota" placeholder="Detalle adicional opcional..." style="width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:10px;padding:.65rem .9rem;font-family:inherit;font-size:.85rem;outline:none;resize:vertical;min-height:65px"></textarea>
+      </div>
+    </div>
+
+    <div class="modal-actions" style="margin-top:0;border-top:1px solid var(--border);padding:.65rem 1rem">
+      <button class="btn btn-outline" onclick="document.getElementById('pmDeleteModal').classList.remove('open')">Cancelar</button>
+      <button class="btn btn-danger" onclick="executeDelete()">🗑️ Confirmar eliminación</button>
+    </div>
   </div>
 </div>
 
@@ -1373,6 +1413,217 @@ tbody tr{transition:background .1s}
     <div id="agregarListaBody" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0"></div>
     <div class="modal-actions" style="margin-top:0;border-top:1px solid var(--border);padding:.65rem 1rem">
       <button class="btn btn-outline" onclick="document.getElementById('agregarAListaModal').classList.remove('open');renderListaDetalle()">Listo</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!-- MODAL: ACCESO PIN ADMINISTRADOR                        -->
+<!-- ══════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="adminPinModal">
+  <div class="modal" style="max-width:380px;padding:0;overflow:hidden">
+    <div style="background:linear-gradient(135deg,#0f172a,#1e293b);padding:1.1rem 1.3rem;text-align:center">
+      <div style="font-size:2rem;margin-bottom:.3rem">🔐</div>
+      <div id="adminPinTitle" style="color:#fff;font-size:1rem;font-weight:800">Acceso administrador</div>
+      <div id="adminPinSubtitle" style="color:#94a3b8;font-size:.75rem;margin-top:.2rem">Ingresa tu PIN de 4 dígitos</div>
+    </div>
+
+    <div style="padding:1.3rem 1.5rem">
+      <!-- Display de puntos -->
+      <div id="adminPinDots" style="display:flex;justify-content:center;gap:.7rem;margin-bottom:1.1rem">
+        <div class="pin-dot" data-i="0" style="width:16px;height:16px;border-radius:50%;border:2px solid var(--border);transition:all .15s"></div>
+        <div class="pin-dot" data-i="1" style="width:16px;height:16px;border-radius:50%;border:2px solid var(--border);transition:all .15s"></div>
+        <div class="pin-dot" data-i="2" style="width:16px;height:16px;border-radius:50%;border:2px solid var(--border);transition:all .15s"></div>
+        <div class="pin-dot" data-i="3" style="width:16px;height:16px;border-radius:50%;border:2px solid var(--border);transition:all .15s"></div>
+      </div>
+
+      <!-- Teclado numérico -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.55rem">
+        <button onclick="adminPinPress('1')" class="pin-key">1</button>
+        <button onclick="adminPinPress('2')" class="pin-key">2</button>
+        <button onclick="adminPinPress('3')" class="pin-key">3</button>
+        <button onclick="adminPinPress('4')" class="pin-key">4</button>
+        <button onclick="adminPinPress('5')" class="pin-key">5</button>
+        <button onclick="adminPinPress('6')" class="pin-key">6</button>
+        <button onclick="adminPinPress('7')" class="pin-key">7</button>
+        <button onclick="adminPinPress('8')" class="pin-key">8</button>
+        <button onclick="adminPinPress('9')" class="pin-key">9</button>
+        <button onclick="document.getElementById('adminPinModal').classList.remove('open')" class="pin-key" style="color:var(--red);font-size:.75rem;font-weight:700">Cancelar</button>
+        <button onclick="adminPinPress('0')" class="pin-key">0</button>
+        <button onclick="adminPinBackspace()" class="pin-key">⌫</button>
+      </div>
+
+      <div id="adminPinError" style="text-align:center;color:var(--red);font-size:.78rem;font-weight:600;margin-top:.8rem;min-height:1.1rem"></div>
+    </div>
+  </div>
+</div>
+
+<style>
+.pin-key{height:48px;border-radius:12px;border:1.5px solid var(--border);background:var(--surface2);font-size:1.1rem;font-weight:700;color:var(--text);cursor:pointer;font-family:'JetBrains Mono',monospace;transition:all .1s}
+.pin-key:active{background:var(--accent);color:#fff;transform:scale(.95)}
+.pin-dot.filled{background:var(--accent);border-color:var(--accent)}
+.pin-dot.error{background:var(--red);border-color:var(--red)}
+</style>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!-- MODAL: PANEL ADMINISTRADOR                             -->
+<!-- ══════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="adminPanelModal">
+  <div class="modal" style="max-width:760px;padding:0;overflow:hidden;display:flex;flex-direction:column;max-height:94vh">
+
+    <!-- Header oscuro -->
+    <div style="background:linear-gradient(135deg,#0f172a,#1e293b);padding:.9rem 1.2rem;flex-shrink:0;display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div style="color:#38bdf8;font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:.2rem">FarmaStock · Administración</div>
+        <div style="color:#fff;font-size:1.05rem;font-weight:800">🛠️ Panel Administrador</div>
+      </div>
+      <div style="display:flex;gap:.4rem;align-items:center">
+        <button onclick="adminLockNow()" title="Bloquear panel" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:8px;color:#94a3b8;font-size:.7rem;font-weight:700;padding:.32rem .6rem;cursor:pointer;font-family:inherit">🔒 Bloquear</button>
+        <button class="modal-close" onclick="document.getElementById('adminPanelModal').classList.remove('open')" style="color:#94a3b8">✕</button>
+      </div>
+    </div>
+
+    <!-- Contenido en grid de secciones -->
+    <div style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:1rem 1.2rem">
+
+      <!-- Resumen rápido -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;margin-bottom:1.2rem" id="adminStatsRow"></div>
+
+      <!-- Sección: Productos -->
+      <div class="admin-section">
+        <div class="admin-section-title">📦 Productos e inventario</div>
+        <div class="admin-grid">
+          <button class="admin-card" onclick="closeAdminPanel();openModal()">
+            <span class="admin-card-icon" style="background:#e0f2fe">＋</span>
+            <span class="admin-card-label">Agregar producto</span>
+            <span class="admin-card-desc">Registrar un nuevo medicamento</span>
+          </button>
+          <button class="admin-card" onclick="closeAdminPanel();openProductsModal()">
+            <span class="admin-card-icon" style="background:#e0f2fe">✏️</span>
+            <span class="admin-card-label">Editar / Eliminar</span>
+            <span class="admin-card-desc">Ver y modificar todo el inventario</span>
+          </button>
+          <button class="admin-card" onclick="closeAdminPanel();openCtrlModal()">
+            <span class="admin-card-icon" style="background:#fee2e2">🔒</span>
+            <span class="admin-card-label">Agregar controlado</span>
+            <span class="admin-card-desc">Medicamento de control especial</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Sección: Listas -->
+      <div class="admin-section">
+        <div class="admin-section-title">📂 Listas / Categorías</div>
+        <div class="admin-grid">
+          <button class="admin-card" onclick="closeAdminPanel();openGestorListas()">
+            <span class="admin-card-icon" style="background:#dbeafe">📂</span>
+            <span class="admin-card-label">Gestionar listas</span>
+            <span class="admin-card-desc">Crear, renombrar, eliminar listas</span>
+          </button>
+          <button class="admin-card" onclick="closeAdminPanel();openNuevaLista()">
+            <span class="admin-card-icon" style="background:#dbeafe">＋</span>
+            <span class="admin-card-label">Nueva lista</span>
+            <span class="admin-card-desc">Crear una categoría desde cero</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Sección: Datos -->
+      <div class="admin-section">
+        <div class="admin-section-title">💾 Datos</div>
+        <div class="admin-grid">
+          <button class="admin-card" onclick="closeAdminPanel();openImportModal()">
+            <span class="admin-card-icon" style="background:#d1fae5">📥</span>
+            <span class="admin-card-label">Importar Excel/CSV</span>
+            <span class="admin-card-desc">Carga masiva de productos</span>
+          </button>
+          <button class="admin-card" onclick="closeAdminPanel();exportInventarioPDF()">
+            <span class="admin-card-icon" style="background:#d1fae5">⬇️</span>
+            <span class="admin-card-label">Exportar PDF</span>
+            <span class="admin-card-desc">Reporte completo de inventario</span>
+          </button>
+          <button class="admin-card" onclick="closeAdminPanel();exportCSV()">
+            <span class="admin-card-icon" style="background:#d1fae5">📄</span>
+            <span class="admin-card-label">Exportar CSV</span>
+            <span class="admin-card-desc">Datos crudos para respaldo</span>
+          </button>
+          <button class="admin-card" onclick="closeAdminPanel();openEmailReportModal()">
+            <span class="admin-card-icon" style="background:#d1fae5">📧</span>
+            <span class="admin-card-label">Enviar reporte</span>
+            <span class="admin-card-desc">PDF por correo electrónico</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Sección: Sistema -->
+      <div class="admin-section">
+        <div class="admin-section-title">⚙️ Sistema</div>
+        <div class="admin-grid">
+          <button class="admin-card" onclick="closeAdminPanel();switchPage('logs')">
+            <span class="admin-card-icon" style="background:#ede9fe">📋</span>
+            <span class="admin-card-label">Registro de movimientos</span>
+            <span class="admin-card-desc">Historial de cambios</span>
+          </button>
+          <button class="admin-card" onclick="openCambiarPin()">
+            <span class="admin-card-icon" style="background:#ede9fe">🔑</span>
+            <span class="admin-card-label">Cambiar PIN</span>
+            <span class="admin-card-desc">Actualizar contraseña de acceso</span>
+          </button>
+          <button class="admin-card admin-card-danger" onclick="closeAdminPanel();clearLog()">
+            <span class="admin-card-icon" style="background:#fee2e2">🗑️</span>
+            <span class="admin-card-label">Limpiar registro</span>
+            <span class="admin-card-desc">Borrar historial de movimientos</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<style>
+.admin-section{margin-bottom:1.3rem}
+.admin-section-title{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:.55rem;padding-left:.1rem}
+.admin-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.6rem}
+.admin-card{display:flex;flex-direction:column;align-items:flex-start;gap:.35rem;background:var(--surface);border:1.5px solid var(--border);border-radius:12px;padding:.85rem .9rem;cursor:pointer;text-align:left;transition:all .15s;font-family:inherit}
+.admin-card:hover{border-color:var(--accent);box-shadow:0 2px 10px rgba(0,0,0,.06);transform:translateY(-1px)}
+.admin-card-icon{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:1rem}
+.admin-card-label{font-weight:700;font-size:.82rem;color:var(--text)}
+.admin-card-desc{font-size:.68rem;color:var(--muted);line-height:1.3}
+.admin-card-danger:hover{border-color:var(--red)}
+</style>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!-- MODAL: CAMBIAR PIN                                     -->
+<!-- ══════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="cambiarPinModal">
+  <div class="modal" style="max-width:400px;padding:0;overflow:hidden">
+    <div style="background:linear-gradient(135deg,#0f172a,#1e293b);padding:.9rem 1.2rem;display:flex;align-items:center;justify-content:space-between">
+      <div style="color:#fff;font-size:.95rem;font-weight:800">🔑 Cambiar PIN de acceso</div>
+      <button class="modal-close" onclick="document.getElementById('cambiarPinModal').classList.remove('open')" style="color:#94a3b8">✕</button>
+    </div>
+    <div style="padding:1.1rem 1.3rem;display:flex;flex-direction:column;gap:.8rem">
+      <div class="form-group">
+        <label style="font-size:.75rem;font-weight:600">PIN actual</label>
+        <input type="password" id="pinActualInput" maxlength="4" inputmode="numeric" placeholder="••••"
+          style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:.6rem .9rem;font-size:1.1rem;letter-spacing:.4rem;text-align:center;outline:none;font-family:monospace">
+      </div>
+      <div class="form-group">
+        <label style="font-size:.75rem;font-weight:600">Nuevo PIN (4 dígitos)</label>
+        <input type="password" id="pinNuevoInput" maxlength="4" inputmode="numeric" placeholder="••••"
+          style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:.6rem .9rem;font-size:1.1rem;letter-spacing:.4rem;text-align:center;outline:none;font-family:monospace">
+      </div>
+      <div class="form-group">
+        <label style="font-size:.75rem;font-weight:600">Confirmar nuevo PIN</label>
+        <input type="password" id="pinConfirmInput" maxlength="4" inputmode="numeric" placeholder="••••"
+          style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:.6rem .9rem;font-size:1.1rem;letter-spacing:.4rem;text-align:center;outline:none;font-family:monospace">
+      </div>
+      <div id="cambiarPinError" style="color:var(--red);font-size:.78rem;font-weight:600;text-align:center;min-height:1rem"></div>
+    </div>
+    <div class="modal-actions" style="margin-top:0;border-top:1px solid var(--border);padding:.65rem 1rem">
+      <button class="btn btn-outline" onclick="document.getElementById('cambiarPinModal').classList.remove('open')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarNuevoPin()">💾 Guardar PIN</button>
     </div>
   </div>
 </div>
@@ -2151,7 +2402,7 @@ function saveProduct(){
   const data={nombre,categoria,principio:document.getElementById('fPrincipio').value.trim(),concentracion:document.getElementById('fConcentracion').value.trim(),tipo:document.getElementById('fTipo').value,laboratorio:document.getElementById('fLaboratorio').value.trim(),sku:document.getElementById('fSku').value.trim(),stock:Number(document.getElementById('fStock').value)||0,minStock:Number(document.getElementById('fMinStock').value)||0,unidad:document.getElementById('fUnidad').value,lote:document.getElementById('fLote').value.trim(),vencimiento:document.getElementById('fVencimiento').value,precio:Number(document.getElementById('fPrecio').value)||0,costo:Number(document.getElementById('fCosto').value)||0,notas:document.getElementById('fNotas').value.trim()};
   if(editId){const i=products.findIndex(p=>p.id===editId);products[i]={...products[i],...data};}
   else{data.id=Date.now();products.push(data);}
-  save();closeModal();renderTable();
+  save();closeModal();renderTable();renderStats();updateFilters();
 }
 
 // ── MODALS: CONTROLADO ────────────────────────────────
@@ -2181,6 +2432,7 @@ function closeConfirm(){ document.getElementById('confirmModal').classList.remov
 function confirmDelete(){
   if(deleteIsCtrl){controlled=controlled.filter(p=>p.id!==deleteId);saveCtrl();renderCtrlTable();}
   else{products=products.filter(p=>p.id!==deleteId);save();renderTable();}
+  renderStats();updateFilters();
   closeConfirm();
 }
 
@@ -2347,25 +2599,29 @@ function openProductsModal(){
 }
 function enterSelectMode(){ pmSelectMode=true;pmSelected.clear();document.getElementById('pmSelBar').style.display='flex';document.getElementById('pmSelectModeBtn').style.display='none';renderProductsModal(); }
 function exitSelectMode(){ pmSelectMode=false;pmSelected.clear();const bar=document.getElementById('pmSelBar');if(bar)bar.style.display='none';const btn=document.getElementById('pmSelectModeBtn');if(btn)btn.style.display='';renderProductsModal(); }
-function toggleSelectAll(){
-  const chk=document.getElementById('pmSelectAll');
+// Helper compartido — mismos campos que la tabla principal
+// (nombre, principio, categoría, tipo, laboratorio, sku, lote,
+//  concentración, notas) para que ambas búsquedas coincidan.
+function pmMatchesQuery(p,q){
+  return !q||[p.nombre,p.principio||'',p.categoria||'',p.tipo||'',p.laboratorio||'',p.sku||'',p.lote||'',p.concentracion||'',p.notas||''].some(f=>f.toLowerCase().includes(q));
+}
+function pmFilteredData(){
   const q=(document.getElementById('pmSearch').value||'').toLowerCase();
   const cat=document.getElementById('pmFilterCat').value;
-  const vis=products.filter(p=>{const mq=!q||[p.nombre,p.principio||'',p.categoria||'',p.tipo||'',p.laboratorio||'',p.sku||''].some(f=>f.toLowerCase().includes(q));return mq&&(!cat||p.categoria===cat);});
+  return products.filter(p=>pmMatchesQuery(p,q)&&(!cat||p.categoria===cat));
+}
+function toggleSelectAll(){
+  const chk=document.getElementById('pmSelectAll');
+  const vis=pmFilteredData();
   if(chk.checked)vis.forEach(p=>pmSelected.add(p.id));else pmSelected.clear();
   updateSelCount();renderProductsModal();
 }
 function toggleSelect(id){ if(pmSelected.has(id))pmSelected.delete(id);else pmSelected.add(id);updateSelCount();renderProductsModal(); }
 function updateSelCount(){ const n=pmSelected.size;const el=document.getElementById('pmSelCount');if(el)el.textContent=`${n} seleccionado(s)`;const btn=document.getElementById('pmDelBtn');if(btn){btn.disabled=n===0;btn.style.opacity=n===0?'.4':'1';} }
 function renderProductsModal(){
-  const q   = (document.getElementById('pmSearch').value||'').toLowerCase();
-  const cat = document.getElementById('pmFilterCat').value;
   const sv  = document.getElementById('pmSort').value;
 
-  let data = [...products].filter(p => {
-    const mq = !q || [p.nombre,p.principio||'',p.categoria||'',p.tipo||'',p.laboratorio||'',p.sku||''].some(f=>f.toLowerCase().includes(q));
-    return mq && (!cat || p.categoria===cat);
-  });
+  let data = pmFilteredData();
   if(sv==='nombre')     data.sort((a,b)=>a.nombre.localeCompare(b.nombre));
   else if(sv==='stock-desc') data.sort((a,b)=>b.stock-a.stock);
   else if(sv==='stock-asc')  data.sort((a,b)=>a.stock-b.stock);
@@ -2401,7 +2657,12 @@ function renderProductsModal(){
 
   const catColors = ['#0ea5e9','#10b981','#8b5cf6','#f59e0b','#ef4444','#ec4899','#14b8a6','#f97316'];
   // Para sort no-categoría, mantener el orden original sin reagrupar visualmente
-  const useCatHeaders = (sv==='categoria' || sv==='nombre' || !q);
+  // FIX #4: antes se agrupaba por categoría siempre que el buscador
+  // estuviera vacío, ignorando el orden elegido (Stock/Vencimiento).
+  // Ahora solo se agrupa cuando el propio orden elegido es por nombre
+  // o categoría — Stock y Vencimiento siempre se muestran en lista
+  // plana y ordenada, sin importar si hay texto en el buscador.
+  const useCatHeaders = (sv==='categoria' || sv==='nombre');
 
   if(useCatHeaders){
     catOrder.forEach((cat, ci) => {
@@ -2435,7 +2696,26 @@ function renderProductsModal(){
   }
 
   el.innerHTML = out;
-  if(pmSelectMode){ const allVis=data.every(p=>pmSelected.has(p.id)); const sa=document.getElementById('pmSelectAll'); if(sa)sa.checked=allVis&&data.length>0; }
+  if(pmSelectMode){
+    const allVis = data.every(p=>pmSelected.has(p.id));
+    const sa = document.getElementById('pmSelectAll');
+    if(sa) sa.checked = allVis && data.length>0;
+
+    // FIX #3: antes el contador solo mostraba pmSelected.size sin avisar
+    // si había productos seleccionados que quedaron fuera del filtro
+    // actual (invisibles). Esto podía llevar a eliminar por accidente
+    // productos que el usuario no estaba viendo en pantalla.
+    const visibleIds = new Set(data.map(p=>p.id));
+    let visibleSelected = 0;
+    pmSelected.forEach(id => { if(visibleIds.has(id)) visibleSelected++; });
+    const hiddenSelected = pmSelected.size - visibleSelected;
+    const cntEl = document.getElementById('pmSelCount');
+    if(cntEl){
+      cntEl.textContent = pmSelected.size + ' seleccionado(s)'
+        + (hiddenSelected > 0 ? ' ⚠️ ' + hiddenSelected + ' fuera de este filtro' : '');
+      cntEl.style.color = hiddenSelected > 0 ? '#c2410c' : 'var(--red)';
+    }
+  }
 }
 
 function pmRenderRow(p, pi, total, sc){
@@ -2513,7 +2793,7 @@ function executeDelete(){
   saveLog();
   products=products.filter(p=>!pmSelected.has(p.id));saveNow();
   document.getElementById('pmDeleteModal').classList.remove('open');
-  exitSelectMode();renderTable();renderProductsModal();
+  exitSelectMode();renderTable();renderProductsModal();renderStats();updateFilters();
   showToast(`🗑️ ${toDelete.length} producto(s) eliminado(s).`,'red');
 }
 
@@ -3347,7 +3627,7 @@ function cRenderTabla() {
       var diff   = c !== undefined ? (c.contado - p.stock) : null;
 
       var diffTxt = '—';
-      var rowBg   = pi % 2 === 0 ? '' : 'background:var(--surface2)';
+      var rowBg   = pi % 2 === 0 ? 'background:var(--surface)' : 'background:var(--surface2)';
       var inputBg = 'var(--surface)';
       var inputBd = 'var(--border)';
 
@@ -3360,14 +3640,24 @@ function cRenderTabla() {
       var diffColor = diff === null ? 'var(--muted)' : diff === 0 ? 'var(--green)' : diff < 0 ? 'var(--red)' : 'var(--accent)';
       var showRazon = diff !== null && diff < 0;
 
-      var checkCell = cModo === 'manual'
-        ? '<td style="padding:.4rem .35rem;text-align:center;vertical-align:middle"><input type="checkbox"' + (cIdsAct.has(p.id) ? ' checked' : '') + ' onchange="cToggleProd(' + p.id + ',this.checked)" style="width:18px;height:18px;cursor:pointer;accent-color:var(--accent)"></td>'
-        : '';
+      // La celda siempre existe para que <thead> y <tbody> tengan el
+      // mismo número de columnas; se oculta cuando no es modo manual.
+      var checkCell = '<td class="c-td-check" style="' + (cModo === 'manual' ? '' : 'display:none;') + 'padding:.4rem .35rem;text-align:center;vertical-align:middle">'
+        + (cModo === 'manual'
+            ? '<input type="checkbox"' + (cIdsAct.has(p.id) ? ' checked' : '') + ' onchange="cToggleProd(' + p.id + ',this.checked)" style="width:18px;height:18px;cursor:pointer;accent-color:var(--accent)">'
+            : '')
+        + '</td>';
+
+      // Valor inicial del spinner: el conteo ya registrado, o el
+      // stock del sistema como punto de partida editable.
+      var inputVal = (c !== undefined && c.contado !== undefined && c.contado !== null && c.contado !== '')
+        ? c.contado
+        : p.stock;
 
       // Spinner compacto táctil
       var spinner = '<div style="display:inline-flex;align-items:center;border:2px solid ' + inputBd + ';border-radius:9px;overflow:hidden;background:' + inputBg + ';width:100%;max-width:120px">' +
         '<button type="button" onclick="cAjustar(' + p.id + ',-1)" style="width:32px;min-width:32px;height:38px;border:none;background:' + inputBg + ';color:var(--text);font-size:1.2rem;font-weight:900;line-height:1;cursor:pointer;border-right:1px solid ' + inputBd + ';flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:0;-webkit-tap-highlight-color:transparent">&#8722;</button>' +
-        '<input type="number" id="cIn_' + p.id + '" value="' + (val !== undefined && val !== null ? val : p.stock) + '" min="0" placeholder="' + p.stock + '" oninput="cSetVal(' + p.id + ',this.value)" style="flex:1;min-width:0;width:38px;height:38px;border:none;text-align:center;font-family:monospace;font-weight:800;font-size:1rem;outline:none;padding:0;background:' + inputBg + ';color:var(--text);-moz-appearance:textfield;-webkit-appearance:none" inputmode="numeric">' +
+        '<input type="number" id="cIn_' + p.id + '" value="' + inputVal + '" min="0" placeholder="' + p.stock + '" oninput="cSetVal(' + p.id + ',this.value)" style="flex:1;min-width:0;width:38px;height:38px;border:none;text-align:center;font-family:monospace;font-weight:800;font-size:1rem;outline:none;padding:0;background:' + inputBg + ';color:var(--text);-moz-appearance:textfield;-webkit-appearance:none" inputmode="numeric">' +
         '<button type="button" onclick="cAjustar(' + p.id + ',1)" style="width:32px;min-width:32px;height:38px;border:none;background:' + inputBg + ';color:var(--text);font-size:1.2rem;font-weight:900;line-height:1;cursor:pointer;border-left:1px solid ' + inputBd + ';flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:0;-webkit-tap-highlight-color:transparent">&#43;</button>' +
         '</div>';
 
@@ -5074,6 +5364,222 @@ function glConfirmarAgregar(id){
   renderAgregarLista();
   // Feedback visual
   showToast('＋ "' + p.nombre + '" agregado a ' + glListaActual + (anterior?' (era: '+anterior+')':''), 'green');
+}
+
+
+// ════════════════════════════════════════════════════════
+//  PANEL ADMINISTRADOR — Sistema de PIN + Hub central
+// ════════════════════════════════════════════════════════
+var adminPinBuffer  = '';
+var adminPinMode    = 'verify';   // 'setup' | 'verify' | 'change-verify'
+var adminPinCallback = null;
+
+// Hash simple (no criptográfico, suficiente para PIN local de 4 dígitos)
+function simpleHash(str){
+  var hash = 0;
+  for(var i=0; i<str.length; i++){
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return String(hash);
+}
+
+function getAdminPinHash(){
+  try{ return localStorage.getItem('fs_admin_pin') || null; }catch(e){ return null; }
+}
+function setAdminPinHash(hash){
+  try{ localStorage.setItem('fs_admin_pin', hash); }catch(e){}
+}
+function isAdminUnlocked(){
+  try{ return sessionStorage.getItem('fs_admin_unlocked') === '1'; }catch(e){ return false; }
+}
+function setAdminUnlocked(v){
+  try{ sessionStorage.setItem('fs_admin_unlocked', v ? '1' : '0'); }catch(e){}
+}
+
+// ── Punto de entrada: botón "Panel administrador" ─────────
+function requestAdminAccess(){
+  if(isAdminUnlocked()){
+    openAdminPanel();
+    return;
+  }
+  var hash = getAdminPinHash();
+  if(!hash){
+    // Primera vez: configurar PIN
+    adminPinMode = 'setup';
+    adminPinBuffer = '';
+    document.getElementById('adminPinTitle').textContent = 'Crear PIN de administrador';
+    document.getElementById('adminPinSubtitle').textContent = 'Elige un PIN de 4 dígitos';
+    document.getElementById('adminPinError').textContent = '';
+    adminPinRenderDots();
+    document.getElementById('adminPinModal').classList.add('open');
+  } else {
+    adminPinMode = 'verify';
+    adminPinBuffer = '';
+    document.getElementById('adminPinTitle').textContent = 'Acceso administrador';
+    document.getElementById('adminPinSubtitle').textContent = 'Ingresa tu PIN de 4 dígitos';
+    document.getElementById('adminPinError').textContent = '';
+    adminPinRenderDots();
+    document.getElementById('adminPinModal').classList.add('open');
+  }
+}
+
+// ── Teclado PIN ─────────────────────────────────────────
+function adminPinPress(digit){
+  if(adminPinBuffer.length >= 4) return;
+  adminPinBuffer += digit;
+  adminPinRenderDots();
+  if(adminPinBuffer.length === 4){
+    setTimeout(adminPinSubmit, 150);
+  }
+}
+
+function adminPinBackspace(){
+  adminPinBuffer = adminPinBuffer.slice(0, -1);
+  adminPinRenderDots();
+  document.getElementById('adminPinError').textContent = '';
+}
+
+function adminPinRenderDots(){
+  var dots = document.querySelectorAll('#adminPinDots .pin-dot');
+  dots.forEach(function(d, i){
+    d.classList.remove('filled','error');
+    if(i < adminPinBuffer.length) d.classList.add('filled');
+  });
+}
+
+function adminPinShake(){
+  var dots = document.querySelectorAll('#adminPinDots .pin-dot');
+  dots.forEach(function(d){ d.classList.add('error'); });
+  setTimeout(function(){
+    dots.forEach(function(d){ d.classList.remove('error','filled'); });
+  }, 500);
+}
+
+// Doble buffer para el modo 'setup' (confirmar PIN nuevo)
+var adminPinFirstEntry = null;
+
+function adminPinSubmit(){
+  var hash = getAdminPinHash();
+
+  if(adminPinMode === 'setup'){
+    if(adminPinFirstEntry === null){
+      // Primera captura — pedir confirmación
+      adminPinFirstEntry = adminPinBuffer;
+      adminPinBuffer = '';
+      document.getElementById('adminPinSubtitle').textContent = 'Confirma tu nuevo PIN';
+      adminPinRenderDots();
+    } else {
+      if(adminPinBuffer === adminPinFirstEntry){
+        setAdminPinHash(simpleHash(adminPinBuffer));
+        adminPinFirstEntry = null;
+        adminPinBuffer = '';
+        setAdminUnlocked(true);
+        document.getElementById('adminPinModal').classList.remove('open');
+        showToast('🔐 PIN configurado correctamente', 'green');
+        openAdminPanel();
+      } else {
+        document.getElementById('adminPinError').textContent = 'Los PIN no coinciden. Intenta de nuevo.';
+        adminPinShake();
+        adminPinFirstEntry = null;
+        adminPinBuffer = '';
+        setTimeout(function(){
+          document.getElementById('adminPinSubtitle').textContent = 'Elige un PIN de 4 dígitos';
+          document.getElementById('adminPinError').textContent = '';
+        }, 1400);
+      }
+    }
+
+  } else if(adminPinMode === 'verify'){
+    if(simpleHash(adminPinBuffer) === hash){
+      adminPinBuffer = '';
+      setAdminUnlocked(true);
+      document.getElementById('adminPinModal').classList.remove('open');
+      openAdminPanel();
+    } else {
+      document.getElementById('adminPinError').textContent = 'PIN incorrecto. Intenta de nuevo.';
+      adminPinShake();
+      adminPinBuffer = '';
+    }
+
+  } else if(adminPinMode === 'change-verify'){
+    if(simpleHash(adminPinBuffer) === hash){
+      adminPinBuffer = '';
+      document.getElementById('adminPinModal').classList.remove('open');
+      if(adminPinCallback){ adminPinCallback(); adminPinCallback = null; }
+    } else {
+      document.getElementById('adminPinError').textContent = 'PIN incorrecto.';
+      adminPinShake();
+      adminPinBuffer = '';
+    }
+  }
+}
+
+// ── Panel administrador — abrir/cerrar ─────────────────────
+function openAdminPanel(){
+  renderAdminStats();
+  document.getElementById('adminPanelModal').classList.add('open');
+}
+function closeAdminPanel(){
+  document.getElementById('adminPanelModal').classList.remove('open');
+}
+function adminLockNow(){
+  setAdminUnlocked(false);
+  closeAdminPanel();
+  showToast('🔒 Panel administrador bloqueado', 'accent');
+}
+
+function renderAdminStats(){
+  var totalProd = products.length;
+  var totalCat  = getCategories().length;
+  var sinStock  = products.filter(function(p){ return p.stock===0; }).length;
+  var el = document.getElementById('adminStatsRow');
+  if(!el) return;
+  var items = [
+    {label:'Productos', val:totalProd, col:'var(--accent)'},
+    {label:'Listas',    val:totalCat,  col:'#0ea5e9'},
+    {label:'Sin stock', val:sinStock,  col:'var(--red)'},
+  ];
+  el.innerHTML = items.map(function(it){
+    return '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.6rem .8rem;text-align:center">'
+      + '<div style="font-family:monospace;font-weight:800;font-size:1.3rem;color:' + it.col + '">' + it.val + '</div>'
+      + '<div style="font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-top:.1rem">' + it.label + '</div>'
+    + '</div>';
+  }).join('');
+}
+
+// ── Cambiar PIN ──────────────────────────────────────────
+function openCambiarPin(){
+  document.getElementById('pinActualInput').value = '';
+  document.getElementById('pinNuevoInput').value = '';
+  document.getElementById('pinConfirmInput').value = '';
+  document.getElementById('cambiarPinError').textContent = '';
+  document.getElementById('cambiarPinModal').classList.add('open');
+}
+
+function guardarNuevoPin(){
+  var actual  = document.getElementById('pinActualInput').value.trim();
+  var nuevo   = document.getElementById('pinNuevoInput').value.trim();
+  var confirm2= document.getElementById('pinConfirmInput').value.trim();
+  var errorEl = document.getElementById('cambiarPinError');
+
+  var hash = getAdminPinHash();
+  if(simpleHash(actual) !== hash){
+    errorEl.textContent = '⚠️ El PIN actual es incorrecto.';
+    return;
+  }
+  if(!/^\d{4}$/.test(nuevo)){
+    errorEl.textContent = '⚠️ El nuevo PIN debe tener 4 dígitos.';
+    return;
+  }
+  if(nuevo !== confirm2){
+    errorEl.textContent = '⚠️ Los PIN nuevos no coinciden.';
+    return;
+  }
+
+  setAdminPinHash(simpleHash(nuevo));
+  document.getElementById('cambiarPinModal').classList.remove('open');
+  showToast('🔑 PIN actualizado correctamente', 'green');
 }
 
 </script>
